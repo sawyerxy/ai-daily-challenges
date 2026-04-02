@@ -1,0 +1,45 @@
+# AI每日应用 - 依赖包列表
+# 请根据实际项目需求调整版本号
+
+# 核心依赖
+streamlit>=1.55.0
+pandas>=2.0.0
+numpy>=2.0.0
+matplotlib>=3.8.0
+
+# AI/机器学习库（根据需求选择）
+openai>=1.0.0
+langchain>=0.1.0
+transformers>=4.36.0
+torch>=2.0.0
+
+# 数据处理与可视化
+plotly>=5.18.0
+seaborn>=0.13.0
+scikit-learn>=1.4.0
+
+# 网络与API
+requests>=2.31.0
+httpx>=0.25.0
+
+# 工具与工具链
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+loguru>=0.7.0
+
+# 测试框架
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# 代码质量
+black>=23.11.0
+flake8>=6.1.0
+mypy>=1.8.0
+
+# 开发工具
+jupyter>=1.0.0
+ipython>=8.18.0
+
+# 其他工具库
+tqdm>=4.66.0
+pyyaml>=6.0.0
