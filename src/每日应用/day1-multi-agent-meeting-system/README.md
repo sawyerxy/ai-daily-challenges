@@ -6,6 +6,11 @@
 
 `docs/每日应用/day1-multi-agent-meeting-system/详细使用文档.md`
 
+移动端 demo 设计和 Flutter 源码请查看：
+
+- `docs/每日应用/day1-multi-agent-meeting-system/flutter_app_design.md`
+- `apps/meeting_assistant_mobile/`
+
 ## 运行前提
 
 - Python `3.10`、`3.11` 或 `3.12`

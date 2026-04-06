@@ -8,6 +8,7 @@
 - 代码目录: `src/每日应用/day1-multi-agent-meeting-system`
 - 根目录快捷入口: `run_day1.py`
 - 详细使用文档: `docs/每日应用/day1-multi-agent-meeting-system/详细使用文档.md`
+- Flutter mobile demo: `apps/meeting_assistant_mobile`
 
 ## 快速开始
 
@@ -119,3 +120,20 @@ python run_day1.py --action-extractor openrouter --action-model your-openrouter-
 - 补充自动化测试和 CI
 - 提升行动项提取精度
 - 增加 Web 界面和更完整的配置项
+
+## Mobile Demo
+
+A Flutter demo scaffold is now available at:
+
+```text
+apps/meeting_assistant_mobile
+```
+
+Because this machine does not currently have a Flutter toolchain installed, the repo includes the app source and architecture, but not generated Android/iOS wrappers yet. After installing Flutter, run:
+
+```bash
+cd apps/meeting_assistant_mobile
+flutter create .
+flutter pub get
+flutter run
+```
