@@ -7,6 +7,7 @@
 - Day 1: 多智能体会议纪要与行动项追踪系统
 - 代码目录: `src/每日应用/day1-multi-agent-meeting-system`
 - 根目录快捷入口: `run_day1.py`
+- 详细使用文档: `docs/每日应用/day1-multi-agent-meeting-system/详细使用文档.md`
 
 ## 快速开始
 
