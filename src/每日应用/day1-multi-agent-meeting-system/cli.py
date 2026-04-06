@@ -4,7 +4,14 @@ import tempfile
 from pathlib import Path
 
 from action_extractor import ActionItemExtractor
-from app_paths import DEFAULT_MODEL_SIZE, EXAMPLE_AUDIO_PATH
+from app_paths import (
+    DEFAULT_ACTION_EXTRACTOR,
+    DEFAULT_ACTION_FALLBACK,
+    DEFAULT_ACTION_LLM_MODEL,
+    DEFAULT_ACTION_TIMEOUT,
+    DEFAULT_MODEL_SIZE,
+    EXAMPLE_AUDIO_PATH,
+)
 from audio_processor import AudioProcessor
 from database import MeetingDatabase
 
@@ -12,12 +19,31 @@ from database import MeetingDatabase
 class MeetingCLI:
     """命令行界面控制器"""
 
-    def __init__(self, db_path=None, model_size=DEFAULT_MODEL_SIZE, audio_processor_factory=AudioProcessor):
+    def __init__(
+        self,
+        db_path=None,
+        model_size=DEFAULT_MODEL_SIZE,
+        audio_processor_factory=AudioProcessor,
+        action_extractor_factory=ActionItemExtractor,
+        action_extractor_type=DEFAULT_ACTION_EXTRACTOR,
+        action_model=DEFAULT_ACTION_LLM_MODEL,
+        action_base_url=None,
+        action_api_key=None,
+        action_timeout=DEFAULT_ACTION_TIMEOUT,
+        action_fallback=DEFAULT_ACTION_FALLBACK,
+    ):
         self.db = MeetingDatabase(db_path)
         self.model_size = model_size
         self.audio_processor_factory = audio_processor_factory
         self.audio_processor = None
-        self.action_extractor = ActionItemExtractor()
+        self.action_extractor = action_extractor_factory(
+            extractor_type=action_extractor_type,
+            model=action_model,
+            base_url=action_base_url,
+            api_key=action_api_key,
+            timeout=action_timeout,
+            fallback_to_rules=action_fallback,
+        )
 
     def _get_audio_processor(self):
         if self.audio_processor is None:
@@ -71,6 +97,8 @@ class MeetingCLI:
             print(f"会议记录已保存，ID: {meeting_id}")
             print(f"转写文本长度: {len(transcript_text)} 字符")
 
+            if self.action_extractor.extractor_type != "rules":
+                print(f"正在使用 {self.action_extractor.extractor_type} LLM 提取行动项...")
             action_items = self.action_extractor.extract_action_items(transcript_text)
 
             if action_items:
@@ -281,6 +309,36 @@ def main(argv=None):
         choices=["tiny", "base", "small", "medium", "large"],
         help="Whisper 模型大小，默认 tiny，也支持环境变量 MEETING_MODEL_SIZE。",
     )
+    parser.add_argument(
+        "--action-extractor",
+        default=DEFAULT_ACTION_EXTRACTOR,
+        choices=["rules", "ollama", "openrouter"],
+        help="行动项提取方式，默认 rules，也支持环境变量 MEETING_ACTION_EXTRACTOR。",
+    )
+    parser.add_argument(
+        "--action-model",
+        default=DEFAULT_ACTION_LLM_MODEL,
+        help="LLM 动作提取模型名称。Ollama/OpenRouter 模式下建议显式传入。",
+    )
+    parser.add_argument(
+        "--action-base-url",
+        help="动作提取 LLM 的 OpenAI 兼容 API 基地址。Ollama 默认 http://localhost:11434/v1，OpenRouter 默认 https://openrouter.ai/api/v1。",
+    )
+    parser.add_argument(
+        "--action-api-key",
+        help="动作提取 LLM 的 API Key。OpenRouter 推荐改用环境变量 OPENROUTER_API_KEY。",
+    )
+    parser.add_argument(
+        "--action-timeout",
+        type=int,
+        default=DEFAULT_ACTION_TIMEOUT,
+        help="动作提取 LLM 请求超时秒数，默认 60。",
+    )
+    parser.add_argument(
+        "--no-action-fallback",
+        action="store_true",
+        help="当 LLM 提取失败时不回退到规则模式，直接报错退出。",
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="子命令")
 
@@ -306,7 +364,16 @@ def main(argv=None):
         return 1
 
     args = parser.parse_args(argv)
-    cli = MeetingCLI(db_path=args.db_path, model_size=args.model_size)
+    cli = MeetingCLI(
+        db_path=args.db_path,
+        model_size=args.model_size,
+        action_extractor_type=args.action_extractor,
+        action_model=args.action_model,
+        action_base_url=args.action_base_url,
+        action_api_key=args.action_api_key,
+        action_timeout=args.action_timeout,
+        action_fallback=not args.no_action_fallback,
+    )
     success = cli.run_command(args)
     return 0 if success else 1
 

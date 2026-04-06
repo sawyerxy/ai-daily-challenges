@@ -32,6 +32,35 @@ class FakeAudioProcessor:
         return 12
 
 
+def fake_llm_completion(payload, request_url, headers, timeout):
+    return {
+        "choices": [
+            {
+                "message": {
+                    "content": """
+                    {
+                      "action_items": [
+                        {
+                          "description": "完成需求文档",
+                          "owner": "小张",
+                          "deadline": "本周五前",
+                          "priority": "high"
+                        },
+                        {
+                          "description": "整理用户反馈并提交",
+                          "owner": "小李",
+                          "deadline": "下周一",
+                          "priority": "medium"
+                        }
+                      ]
+                    }
+                    """
+                }
+            }
+        ]
+    }
+
+
 class Day1MeetingSystemTests(unittest.TestCase):
     def test_action_item_extractor_finds_expected_owners(self):
         extractor = ActionItemExtractor()
@@ -69,6 +98,37 @@ class Day1MeetingSystemTests(unittest.TestCase):
             self.assertIsNotNone(meeting)
             self.assertEqual(meeting["title"], "项目启动会")
             self.assertEqual(len(meeting["action_items"]), 1)
+
+    def test_llm_action_extractor_can_parse_structured_response(self):
+        extractor = ActionItemExtractor(
+            extractor_type="ollama",
+            model="fake-local-model",
+            completion_caller=fake_llm_completion,
+        )
+
+        items = extractor.extract_action_items("这是一段测试会议内容。")
+
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0]["description"], "完成需求文档")
+        self.assertEqual(items[0]["owner"], "小张")
+        self.assertEqual(items[1]["deadline"], "下周一")
+
+    def test_llm_failure_can_fallback_to_rules(self):
+        def failing_completion(payload, request_url, headers, timeout):
+            raise RuntimeError("mock llm unavailable")
+
+        extractor = ActionItemExtractor(
+            extractor_type="openrouter",
+            model="fake-remote-model",
+            api_key="test-key",
+            completion_caller=failing_completion,
+            fallback_to_rules=True,
+        )
+
+        items = extractor.extract_action_items("小张需要在本周五前完成需求文档。")
+
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["owner"], "小张")
 
     def test_cli_upload_works_with_injected_audio_processor(self):
         with tempfile.TemporaryDirectory() as temp_dir:

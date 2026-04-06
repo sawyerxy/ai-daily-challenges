@@ -15,7 +15,7 @@
 ## 功能特性
 
 - **语音转写**：支持mp3/wav格式音频文件，使用OpenAI Whisper模型进行高精度语音识别
-- **行动项提取**：基于规则匹配自动提取会议中的行动项，识别负责人、截止时间等关键信息
+- **行动项提取**：支持规则法、本地 Ollama 和 OpenRouter 在线 LLM，识别负责人、截止时间等关键信息
 - **数据存储**：使用SQLite数据库保存会议记录和行动项，支持CRUD操作
 - **命令行界面**：简单易用的CLI工具，支持上传音频、查看会议列表、查看行动项等功能
 
@@ -110,6 +110,12 @@ python cli.py --db-path ./data/demo.db list
 
 # 指定 Whisper 模型大小
 python cli.py --model-size base upload meeting.mp3 --title "项目启动会"
+
+# 使用本地 Ollama 提取行动项
+python cli.py --action-extractor ollama --action-model your-local-model upload meeting.mp3 --title "项目启动会"
+
+# 使用 OpenRouter 在线模型提取行动项
+python cli.py --action-extractor openrouter --action-model your-openrouter-model upload meeting.mp3 --title "项目启动会"
 ```
 
 ### 详细示例
@@ -249,6 +255,38 @@ python cli.py --model-size tiny upload example_meeting.mp3 --title "示例会议
 python cli.py --db-path ./my_meetings.db list
 ```
 
+### 行动项提取器
+
+默认使用规则法：
+
+```bash
+python cli.py upload example_meeting.mp3 --title "示例会议"
+```
+
+使用本地 Ollama：
+
+```bash
+python cli.py --action-extractor ollama --action-model your-local-model upload example_meeting.mp3 --title "示例会议"
+```
+
+使用 OpenRouter：
+
+```bash
+python cli.py --action-extractor openrouter --action-model your-openrouter-model upload example_meeting.mp3 --title "示例会议"
+```
+
+常用环境变量：
+
+```bash
+MEETING_ACTION_EXTRACTOR=ollama
+MEETING_ACTION_MODEL=your-local-model
+OLLAMA_BASE_URL=http://localhost:11434/v1
+
+OPENROUTER_API_KEY=your-key
+MEETING_ACTION_EXTRACTOR=openrouter
+MEETING_ACTION_MODEL=your-openrouter-model
+```
+
 ## 故障排除
 
 ### 常见问题
@@ -282,6 +320,7 @@ python cli.py upload --help
 - `list`、`actions`、`summary` 不再依赖 Whisper，可在未执行语音转写时单独使用
 - 数据库默认写入 `data/` 目录，不会再随着当前工作目录漂移
 - `test` 命令可用于快速验证提取器、数据库和可选的音频链路
+- LLM 行动项提取失败时，默认会自动回退到规则模式；可通过 `--no-action-fallback` 关闭
 
 ## 后续开发计划
 

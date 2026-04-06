@@ -81,6 +81,24 @@ python run_day1.py test --include-audio
 - 第一次执行 `upload` 时会下载 Whisper 模型，耗时取决于网络环境
 - 当前行动项提取仍然是规则法，更适合原型验证和内部工具，不适合直接替代成熟会议产品
 
+## 可选的 LLM 增强
+
+Day 1 现在支持把行动项提取从规则法切换到：
+
+- 本地 `Ollama`
+- 在线 `OpenRouter`
+
+示例：
+
+```bash
+python run_day1.py --action-extractor ollama --action-model your-local-model upload meeting.mp3 --title "项目周会"
+python run_day1.py --action-extractor openrouter --action-model your-openrouter-model upload meeting.mp3 --title "项目周会"
+```
+
+更详细的配置说明见：
+
+- `docs/每日应用/day1-multi-agent-meeting-system/详细使用文档.md`
+
 ## 仓库结构
 
 ```text
