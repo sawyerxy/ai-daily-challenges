@@ -10,6 +10,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from cli import main as cli_main
+from app_paths import EXAMPLE_AUDIO_PATH
 
 def run_demo():
     """运行演示模式"""
@@ -18,27 +19,24 @@ def run_demo():
     print("=" * 60)
     
     # 检查是否有示例音频文件
-    example_audio = "example_meeting.mp3"
-    if not os.path.exists(example_audio):
+    example_audio = EXAMPLE_AUDIO_PATH
+    if not example_audio.exists():
         print(f"提示: 请将测试音频文件放在 {example_audio}")
         print("或使用您自己的音频文件运行: python cli.py upload <音频文件路径>")
-        return
+        return 1
     
     print(f"发现示例音频文件: {example_audio}")
     print("开始处理...")
     
-    # 模拟命令行参数
-    sys.argv = ["cli.py", "upload", example_audio, "--title", "示例会议"]
-    cli_main()
+    return cli_main(["upload", str(example_audio), "--title", "示例会议"])
 
 def main():
     """主函数"""
     if len(sys.argv) > 1:
         # 如果有命令行参数，传递给CLI
-        cli_main()
-    else:
-        # 否则运行演示模式
-        run_demo()
+        return cli_main()
+    # 否则运行演示模式
+    return run_demo()
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

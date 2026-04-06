@@ -1,4 +1,2 @@
 openai-whisper==20231117
-nltk==3.8.1
 pydub==0.25.1
-sqlite3

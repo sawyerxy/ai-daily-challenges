@@ -17,6 +17,26 @@ class ActionItemExtractor:
             "由", "负责", "责任人", "指派", "交给", "归属",
             "小张", "小李", "小王", "小明", "张三", "李四"  # 示例人名
         ]
+
+        self.owner_patterns = [
+            r"由(?P<owner>[\u4e00-\u9fffA-Za-z]{2,8})负责",
+            r"(?P<owner>[\u4e00-\u9fffA-Za-z]{2,8})负责",
+            r"(?P<owner>[\u4e00-\u9fffA-Za-z]{2,8})需要",
+            r"(?P<owner>[\u4e00-\u9fffA-Za-z]{2,8})要",
+            r"(?P<owner>[\u4e00-\u9fffA-Za-z]{2,8})应当",
+            r"(?P<owner>[\u4e00-\u9fffA-Za-z]{2,8})应该",
+        ]
+
+        self.invalid_owner_values = {
+            "我们",
+            "大家",
+            "项目",
+            "项目组",
+            "团队",
+            "会议",
+            "今天",
+            "今天的",
+        }
         
         # 截止时间关键词
         self.deadline_keywords = [
@@ -48,7 +68,7 @@ class ActionItemExtractor:
         action_items = []
         
         # 按句号、问号、感叹号分割文本
-        sentences = re.split(r'[。！？；\n]', text)
+        sentences = re.split(r"[。！？；.!?;\n]", text)
         
         for sentence in sentences:
             sentence = sentence.strip()
@@ -99,6 +119,13 @@ class ActionItemExtractor:
     
     def _extract_owner(self, sentence: str) -> Optional[str]:
         """从句子中提取负责人"""
+        for pattern in self.owner_patterns:
+            match = re.search(pattern, sentence)
+            if match:
+                owner = match.group("owner").strip(" ，,：:()（）")
+                if owner and owner not in self.invalid_owner_values:
+                    return owner
+
         # 简单模式：关键词后的人名或称谓
         for keyword in self.owner_keywords:
             if keyword in sentence:
@@ -107,8 +134,8 @@ class ActionItemExtractor:
                 if idx >= 0:
                     # 获取关键词后的内容
                     after_keyword = sentence[idx + len(keyword):idx + len(keyword) + 6]
-                    after_keyword = after_keyword.strip()
-                    if after_keyword:
+                    after_keyword = after_keyword.strip(" ，,：:()（）")
+                    if after_keyword and after_keyword not in self.invalid_owner_values:
                         return after_keyword
         
         # 如果没找到，尝试匹配常见人名
@@ -162,7 +189,7 @@ def test_extraction():
     
     # 测试文本
     test_text = """
-    今天的会议我们需要讨论项目进展。
+    今天的会议我们讨论项目进展。
     小张需要在本周五前完成需求文档。
     小李负责整理用户反馈，下周一提交。
     王五要处理技术难题，月底前解决。

@@ -101,6 +101,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv*/
 env/
 venv/
 ENV/
@@ -150,6 +151,8 @@ temp/
 # *.csv
 # *.json
 # *.xlsx
+*.db
+*.sqlite3
 
 # 输出目录（可根据需要取消注释）
 # outputs/

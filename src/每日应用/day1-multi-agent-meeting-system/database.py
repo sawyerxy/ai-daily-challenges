@@ -1,56 +1,61 @@
 import sqlite3
 import datetime
+from contextlib import closing
 from pathlib import Path
 from typing import List, Dict, Optional
+
+from app_paths import ensure_parent_dir, resolve_db_path
 
 class MeetingDatabase:
     """会议数据存储模块，使用SQLite数据库"""
     
-    def __init__(self, db_path="meetings.db"):
+    def __init__(self, db_path=None):
         """
         初始化数据库连接
         
         Args:
             db_path: 数据库文件路径
         """
-        self.db_path = db_path
+        self.db_path = ensure_parent_dir(resolve_db_path(db_path))
         self._init_database()
+
+    def _connect(self, use_row_factory: bool = False):
+        conn = sqlite3.connect(self.db_path)
+        if use_row_factory:
+            conn.row_factory = sqlite3.Row
+        return conn
     
     def _init_database(self):
         """初始化数据库表结构"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # 创建会议表
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS meetings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                audio_path TEXT,
-                transcript_text TEXT,
-                meeting_date DATE,
-                duration_seconds INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # 创建行动项表
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS action_items (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                meeting_id INTEGER,
-                description TEXT NOT NULL,
-                owner TEXT,
-                deadline TEXT,
-                status TEXT DEFAULT 'pending',
-                priority TEXT DEFAULT 'medium',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (meeting_id) REFERENCES meetings (id)
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
+        with closing(self._connect()) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS meetings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    audio_path TEXT,
+                    transcript_text TEXT,
+                    meeting_date DATE,
+                    duration_seconds INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS action_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    meeting_id INTEGER,
+                    description TEXT NOT NULL,
+                    owner TEXT,
+                    deadline TEXT,
+                    status TEXT DEFAULT 'pending',
+                    priority TEXT DEFAULT 'medium',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (meeting_id) REFERENCES meetings (id)
+                )
+            ''')
+            conn.commit()
     
     def add_meeting(self, title: str, audio_path: str = None, 
                    transcript_text: str = None, duration_seconds: int = None) -> int:
@@ -66,21 +71,16 @@ class MeetingDatabase:
         Returns:
             int: 新会议记录的ID
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
         meeting_date = datetime.datetime.now().date().isoformat()
-        
-        cursor.execute('''
-            INSERT INTO meetings (title, audio_path, transcript_text, meeting_date, duration_seconds)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (title, audio_path, transcript_text, meeting_date, duration_seconds))
-        
-        meeting_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        
-        return meeting_id
+
+        with closing(self._connect()) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO meetings (title, audio_path, transcript_text, meeting_date, duration_seconds)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (title, audio_path, transcript_text, meeting_date, duration_seconds))
+            conn.commit()
+            return cursor.lastrowid
     
     def add_action_item(self, meeting_id: int, description: str, 
                        owner: str = None, deadline: str = None, 
@@ -98,19 +98,14 @@ class MeetingDatabase:
         Returns:
             int: 新行动项的ID
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            INSERT INTO action_items (meeting_id, description, owner, deadline, priority)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (meeting_id, description, owner, deadline, priority))
-        
-        action_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        
-        return action_id
+        with closing(self._connect()) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO action_items (meeting_id, description, owner, deadline, priority)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (meeting_id, description, owner, deadline, priority))
+            conn.commit()
+            return cursor.lastrowid
     
     def get_meetings(self, limit: int = 10) -> List[Dict]:
         """
@@ -122,20 +117,14 @@ class MeetingDatabase:
         Returns:
             List[Dict]: 会议记录列表
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM meetings 
-            ORDER BY created_at DESC 
-            LIMIT ?
-        ''', (limit,))
-        
-        meetings = [dict(row) for row in cursor.fetchall()]
-        conn.close()
-        
-        return meetings
+        with closing(self._connect(use_row_factory=True)) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM meetings 
+                ORDER BY created_at DESC 
+                LIMIT ?
+            ''', (limit,))
+            return [dict(row) for row in cursor.fetchall()]
     
     def get_action_items(self, meeting_id: Optional[int] = None, 
                         status: str = None) -> List[Dict]:
@@ -149,10 +138,6 @@ class MeetingDatabase:
         Returns:
             List[Dict]: 行动项列表
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
         query = "SELECT * FROM action_items WHERE 1=1"
         params = []
         
@@ -166,11 +151,10 @@ class MeetingDatabase:
         
         query += " ORDER BY created_at DESC"
         
-        cursor.execute(query, params)
-        action_items = [dict(row) for row in cursor.fetchall()]
-        conn.close()
-        
-        return action_items
+        with closing(self._connect(use_row_factory=True)) as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
     
     def update_action_item_status(self, action_id: int, status: str):
         """
@@ -180,17 +164,14 @@ class MeetingDatabase:
             action_id: 行动项ID
             status: 新状态（pending/in_progress/completed）
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            UPDATE action_items 
-            SET status = ? 
-            WHERE id = ?
-        ''', (status, action_id))
-        
-        conn.commit()
-        conn.close()
+        with closing(self._connect()) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE action_items 
+                SET status = ? 
+                WHERE id = ?
+            ''', (status, action_id))
+            conn.commit()
     
     def delete_meeting(self, meeting_id: int):
         """
@@ -199,16 +180,11 @@ class MeetingDatabase:
         Args:
             meeting_id: 会议ID
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # 先删除关联的行动项
-        cursor.execute('DELETE FROM action_items WHERE meeting_id = ?', (meeting_id,))
-        # 再删除会议记录
-        cursor.execute('DELETE FROM meetings WHERE id = ?', (meeting_id,))
-        
-        conn.commit()
-        conn.close()
+        with closing(self._connect()) as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM action_items WHERE meeting_id = ?', (meeting_id,))
+            cursor.execute('DELETE FROM meetings WHERE id = ?', (meeting_id,))
+            conn.commit()
     
     def get_meeting_with_actions(self, meeting_id: int) -> Optional[Dict]:
         """
@@ -220,26 +196,17 @@ class MeetingDatabase:
         Returns:
             Optional[Dict]: 会议详情和行动项列表，如果不存在则返回None
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        # 获取会议信息
-        cursor.execute('SELECT * FROM meetings WHERE id = ?', (meeting_id,))
-        meeting_row = cursor.fetchone()
-        
-        if not meeting_row:
-            conn.close()
-            return None
-        
-        meeting = dict(meeting_row)
-        
-        # 获取关联的行动项
-        action_items = self.get_action_items(meeting_id=meeting_id)
-        meeting['action_items'] = action_items
-        
-        conn.close()
-        return meeting
+        with closing(self._connect(use_row_factory=True)) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM meetings WHERE id = ?', (meeting_id,))
+            meeting_row = cursor.fetchone()
+            
+            if not meeting_row:
+                return None
+            
+            meeting = dict(meeting_row)
+            meeting['action_items'] = self.get_action_items(meeting_id=meeting_id)
+            return meeting
 
 
 def test_database():

@@ -1,6 +1,12 @@
 # 多智能体会议纪要与行动项追踪系统
 
-一个基于AI的会议纪要自动生成与行动项追踪系统，通过语音转写和自然语言处理技术，自动提取会议中的行动项，提高会议效率。
+一个基于 AI 的会议纪要自动生成与行动项追踪系统，通过语音转写和规则提取自动沉淀会议记录、行动项和摘要，适合做内部工具原型和会议效率验证。
+
+## 运行前提
+
+- Python `3.10`、`3.11` 或 `3.12`
+- 已安装 `ffmpeg`
+- 首次运行 `upload` 时允许联网下载 Whisper 模型
 
 ## 功能特性
 
@@ -31,9 +37,8 @@ pip install -r requirements.txt
 ```
 
 **依赖包说明**:
-- `openai-whisper`: OpenAI开源的语音识别模型
-- `nltk`: 自然语言处理工具包（用于文本处理）
-- `pydub`: 音频文件处理库
+- `openai-whisper`: OpenAI 开源的语音识别模型
+- `pydub`: 音频文件处理库，用于读取音频时长
 
 ### 2. 安装系统依赖 (可选)
 
@@ -52,13 +57,24 @@ brew install ffmpeg
 **Windows**:
 下载FFmpeg并添加到系统PATH: https://ffmpeg.org/download.html
 
-### 3. 下载NLTK数据 (可选)
+### 3. 推荐使用虚拟环境
 
-如果需要更复杂的文本处理，可以下载NLTK数据：
+Windows:
 
-```python
-import nltk
-nltk.download('punkt')
+```powershell
+py -3.10 -m venv .venv
+.\.venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+macOS / Linux:
+
+```bash
+python3.10 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
 ## 使用方法
@@ -77,6 +93,19 @@ python cli.py actions --meeting-id 1
 
 # 显示会议摘要
 python cli.py summary --meeting-id 1
+
+# 运行内置自检
+python cli.py test
+```
+
+### 可选参数
+
+```bash
+# 指定数据库路径
+python cli.py --db-path ./data/demo.db list
+
+# 指定 Whisper 模型大小
+python cli.py --model-size base upload meeting.mp3 --title "项目启动会"
 ```
 
 ### 详细示例
@@ -186,7 +215,7 @@ python database.py
 
 ### 使用示例音频
 
-项目包含一个示例音频文件 `example_meeting.mp3` (1分钟测试录音)，可用于快速测试系统功能：
+项目包含一个示例音频文件 `example_meeting.mp3`，可用于快速测试系统功能：
 
 ```bash
 python cli.py upload example_meeting.mp3 --title "示例会议"
@@ -196,10 +225,10 @@ python cli.py upload example_meeting.mp3 --title "示例会议"
 
 ### Whisper模型大小
 
-可以在 `audio_processor.py` 中修改模型大小：
+可以通过命令行参数指定模型大小：
 
 ```python
-processor = AudioProcessor(model_size="tiny")  # 可选: tiny, base, small, medium, large
+python cli.py --model-size tiny upload example_meeting.mp3 --title "示例会议"
 ```
 
 - **tiny**: 最快，精度较低 (~1GB RAM)
@@ -210,10 +239,10 @@ processor = AudioProcessor(model_size="tiny")  # 可选: tiny, base, small, medi
 
 ### 数据库路径
 
-默认数据库文件为 `meetings.db`，可以在 `database.py` 中修改：
+默认数据库文件为项目目录下的 `data/meetings.db`，也可以通过参数或环境变量覆盖：
 
 ```python
-db = MeetingDatabase("my_meetings.db")
+python cli.py --db-path ./my_meetings.db list
 ```
 
 ## 故障排除
@@ -226,7 +255,7 @@ db = MeetingDatabase("my_meetings.db")
    - 尝试使用较小的Whisper模型 (tiny/base)
 
 2. **依赖安装失败**
-   - 确保使用Python 3.8+
+   - 确保使用 Python 3.10-3.12
    - 尝试升级pip: `pip install --upgrade pip`
    - 使用虚拟环境避免冲突
 
@@ -243,6 +272,12 @@ python cli.py --help
 # 查看特定命令帮助
 python cli.py upload --help
 ```
+
+## 稳定性说明
+
+- `list`、`actions`、`summary` 不再依赖 Whisper，可在未执行语音转写时单独使用
+- 数据库默认写入 `data/` 目录，不会再随着当前工作目录漂移
+- `test` 命令可用于快速验证提取器、数据库和可选的音频链路
 
 ## 后续开发计划
 
